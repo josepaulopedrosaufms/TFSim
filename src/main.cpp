@@ -23,9 +23,10 @@ int sc_main(int argc, char *argv[])
     using namespace nana;
     vector<string> instruction_queue;
     string bench_name = "";
-    int nadd,nmul,nls, n_bits, bpb_size, cpu_freq;
+    int nadd,nmul,nls, m_bits, n_bits, bpb_size, cpu_freq;
     nadd = 3;
     nmul = nls = 2;
+    m_bits = 2;
     n_bits = 2;
     bpb_size = 4;
     cpu_freq = 500; // definido em Mhz - 500Mhz default
@@ -100,7 +101,7 @@ int sc_main(int argc, char *argv[])
         set_spec(plc,spec);
     });
     // Modo com o bpb
-    spec_sub->append("Branch Prediction Buffer", [&](menu::item_proxy &ip)
+    spec_sub->append("2 Branch Prediction Buffer", [&](menu::item_proxy &ip)
     {
         if(ip.checked()){
             spec = true;
@@ -114,8 +115,24 @@ int sc_main(int argc, char *argv[])
 
         set_spec(plc, spec);
     });
+    // Modo com o bcp
+    spec_sub->append("3 Branch Correlation Prediction", [&](menu::item_proxy &ip)
+    {
+        if(ip.checked()){
+            spec = true;
+            mode = 3;
+            spec_sub->checked(0, false);
+        }
+        else{
+            spec = false;
+            mode = 0;
+        }
+
+        set_spec(plc, spec);
+    });
     spec_sub->check_style(0,menu::checks::highlight);
     spec_sub->check_style(1,menu::checks::highlight);
+    spec_sub->check_style(2,menu::checks::highlight);
 
     op.append("Modificar valores...");
     // novo submenu para escolha do tamanho do bpb e do preditor
@@ -124,10 +141,13 @@ int sc_main(int argc, char *argv[])
     {
         inputbox ibox(fm, "", "Definir tamanhos");
         inputbox::integer size("BPB", bpb_size, 2, 10, 2);
-        inputbox::integer bits("N_BITS", n_bits, 1, 3, 1);
-        if(ibox.show_modal(size, bits)){
+        inputbox::integer mbits("M_BITS", m_bits, 1, 5, 1);
+        inputbox::integer nbits("N_BITS", n_bits, 1, 3, 1);
+        if(ibox.show_modal(size, mbits, nbits)){
             bpb_size = size.value();
-            n_bits = bits.value();
+            m_bits = mbits.value();
+            n_bits = nbits.value();
+            
         }
     });
     sub->append("Número de Estações de Reserva",[&](menu::item_proxy ip)
@@ -887,6 +907,8 @@ int sc_main(int argc, char *argv[])
                     top1.rob_mode(n_bits,nadd,nmul,nls,instruct_time,instruction_queue,table,memory,reg,instruct,clock_count,rob);
                 else if(mode == 2)
                     top1.rob_mode_bpb(n_bits, bpb_size, nadd,nmul,nls,instruct_time,instruction_queue,table,memory,reg,instruct,clock_count,rob);
+                else if(mode == 3)
+                    top1.rob_mode_bcp(m_bits, n_bits, nadd,nmul,nls,instruct_time,instruction_queue,table,memory,reg,instruct,clock_count,rob);
             }
             else
                 top1.simple_mode(nadd,nmul,nls,instruct_time,instruction_queue,table,memory,reg,instruct,clock_count);
@@ -911,7 +933,7 @@ int sc_main(int argc, char *argv[])
                 sc_start();
         }
 
-        top1.metrics(cpu_freq, mode, bench_name, n_bits);
+        top1.metrics(cpu_freq, mode, bench_name, n_bits, m_bits);
     });
 
     exit.events().click([]

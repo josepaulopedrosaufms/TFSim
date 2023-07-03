@@ -1,12 +1,13 @@
 #include <nana/gui.hpp>
 #include "reorder_buffer.hpp"
 
-reorder_buffer::reorder_buffer(sc_module_name name,unsigned int sz,unsigned int pred_size, unsigned int buffer_size, int flag_mode, nana::listbox &gui, nana::listbox::cat_proxy instr_gui): 
+reorder_buffer::reorder_buffer(sc_module_name name,unsigned int sz,unsigned int pht_size, unsigned int pred_size, unsigned int buffer_size, int flag_mode, nana::listbox &gui, nana::listbox::cat_proxy instr_gui): 
 sc_module(name),
 tam(sz),
 flag_mode(flag_mode),
 preditor(pred_size),
 branch_prediction_buffer(buffer_size, pred_size),
+bcp(pht_size, pred_size),
 gui_table(gui),
 instr_queue_gui(instr_gui)
 {
@@ -167,12 +168,16 @@ void reorder_buffer::leitura_issue()
             }
             
             // Novo modo -> Se escolhido no menu, 1 preditor entra no if
-            //se escolhido o bpb, vai pro else
+            //se escolhido no menu bpb, vai para o primeiro else
+            //se escolhido no menu bcp, vai para o segundo else
             if(flag_mode == 1){
                 ptrs[pos]->prediction = preditor.predict();
             }
-            else{
+            else if(flag_mode == 2){
                 ptrs[pos]->prediction = branch_prediction_buffer.bpb_predict(ptrs[pos]->pc);
+            }
+            else if(flag_mode == 3){
+                ptrs[pos]->prediction = bcp.bcp_predict(ptrs[pos]->pc);
             }
             
             if(ptrs[pos]->prediction){
@@ -264,11 +269,13 @@ void reorder_buffer::new_rob_head()
                     out_adu->write("F");
                 }
 
-                cout << "Atualizando bpb" << endl << flush;
+                cout << "Atualizando..." << endl << flush;
                 if(flag_mode == 1){
                     preditor.update_state(pred, hit);
-                }else{
+                }else if(flag_mode == 2){
                     branch_prediction_buffer.bpb_update_state(rob_buff[0]->pc, pred, hit);
+                }else if(flag_mode == 3){
+                    bcp.bcp_update_state(rob_buff[0]->pc, pred, hit);
                 }
                 break;
 
@@ -572,6 +579,10 @@ branch_predictor reorder_buffer::get_preditor() {
 
 bpb reorder_buffer::get_bpb() {
     return branch_prediction_buffer;
+}
+
+branch_correlation_predictor reorder_buffer::get_bcp() {
+    return bcp;
 }
 
 int reorder_buffer::get_mem_count(){

@@ -1,0 +1,27 @@
+#include <stdio.h>
+
+int main() {
+    int array[50];  // Suponha que esse é o array a ser ordenado
+    int i, j, min_index, temp, size = 50;
+
+    for(i = 0; i < size-1; i++) {
+        // Encontre o mínimo na sublista desordenada
+        min_index = i;
+        for(j = i+1; j < size; j++) {
+            if(array[j] < array[min_index]) {
+                min_index = j;
+            }
+        }
+
+        // Troque o elemento mínimo encontrado pela primeira posição
+        if(i != min_index) {
+            temp = array[i];
+            array[i] = array[min_index];
+            array[min_index] = temp;
+        }
+    }
+
+    return 0;
+}
+
+
